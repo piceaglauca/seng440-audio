@@ -94,6 +94,31 @@ int main(int argc, char **argv)
 	
 	//Start reading the .wav file
 	
+	/*
+	Start with intializing the object of the struct wavContents to actually hold the parsed data
+	In this case, the object will simply be called contents
+	The unsigned char array buff is given the size of 4 to account for the fact that it will be a buffer for data that is 4 bytes
+	size_t result is used for the fread() function as shown here http://www.cplusplus.com/reference/cstdio/fread/
+	
+	The actual parsing operation will be done with the fread() function since it reads in an array from a stream and stores them 
+	
+	The first fread operation takes in the value for ckID1, which we know is 'RIFF' 
+	The second fread operation takes in the buff arrary so it can be used with wavFile 
+	After this, contents.cksize1 is defined due to the second fread operations 
+	After this, WAVEID is given its value, which we know is 'WAVE'
+	This completes the reading of the 'RIFF' chunk of the .wav file - PSR, 2021-05-20
+	*/
+	
+	wavContents contents;
+	unsigned char buff[4];
+	size_t result;
+	
+	result = fread(contents.ckID1, sizeof(contents.ckID1), 1, wavFile);
+	result = fread(buff, sizeof(buff), 1, wavFile);
+	contents.cksize1 = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	result = fread(contents.WAVEID, sizeof(contents.WAVEID), 1 wavFile);
+	
+	
 	//I'm assuming that we would use fread for this, since the data is technically a stream due to fopen()
 	
 	//Perform mu-law compression - use bit shifts to account for ln(n) = (log2(n))/(log2(e))
