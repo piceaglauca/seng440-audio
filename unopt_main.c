@@ -42,6 +42,7 @@ typedef struct wavContents
 	uint32_t nSamplesPerSec;
 	uint32_t nAvgBytesPerSec;
 	uint32_t nBlockAlign;
+	uint16_t wBitsPerSample;
 	
 	/*
 	This third piece is about the data of the .wav file that will be uploaded
@@ -97,15 +98,17 @@ int main(int argc, char **argv)
 	/*
 	Start with intializing the object of the struct wavContents to actually hold the parsed data
 	In this case, the object will simply be called contents
-	The unsigned char array buff is given the size of 4 to account for the fact that it will be a buffer for data that is 4 bytes
 	size_t result is used for the fread() function as shown here http://www.cplusplus.com/reference/cstdio/fread/
 	
 	The actual parsing operation will be done with the fread() function since it reads in an array from a stream and stores them 
 	
 	The first fread operation takes in the value for ckID1, which we know is 'RIFF' 
+	
 	The second fread operation takes in the buff arrary so it can be used with wavFile 
 	After this, contents.cksize1 is defined due to the second fread operations 
-	After this, WAVEID is given its value, which we know is 'WAVE'
+	
+	Via the third fread operation, WAVEID is given its value, which we know is 'WAVE'
+	
 	This completes the reading of the 'RIFF' chunk of the .wav file - PSR, 2021-05-20
 	*/
 	
@@ -114,13 +117,80 @@ int main(int argc, char **argv)
 	size_t result;
 	
 	result = fread(contents.ckID1, sizeof(contents.ckID1), 1, wavFile);
-	result = fread(buff, sizeof(buff), 1, wavFile);
+	
+	result = fread(buff, sizeof(uint32_t), 1, wavFile);
 	contents.cksize1 = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	
 	result = fread(contents.WAVEID, sizeof(contents.WAVEID), 1 wavFile);
 	
+	/*
+	The next bit of parsing with fread operations will take in values for the format chunk marker
 	
-	//I'm assuming that we would use fread for this, since the data is technically a stream due to fopen()
+	The first fread operation takes in the value for ckID2, which we know is 'fmt'
 	
+	The second fread operation is a repeat on buff to ensure that it can be used on contents.cksize2
+	After this, contents.cksize3 is defined all due to the third operation
+	
+	The fourth fread operation is a repeat on buff but this time with a smaller size, so sizeof(uint16_t) is used instead
+	After this, contents.wFormatTag is defined and it is used to judge the format type of the audio file
+	
+	The fifth fread operation is a repeat on buff with a smaller size, so sizeof(uint16_t) is once again used
+	After this, contents.nChannels is defined due to the fifth operation
+	
+	The sixth fread operation is a repeat on buff with the normal size for nSamplesPerSec
+	After this, contents.nSamplesPerSec is defined due to the sixth operation
+	
+	The seventh fread operation is a repeat on buff with the normal size for nAvgBytesPerSec
+	After this, contents.nAvgBytesPerSec is defined due to the seventh operation
+	
+	The eighth fread operation is a repeat on buff with the small size for nBlockAlign
+	After this, contents.nBlockAlign is defined due to the eighth operation
+	
+	The ninth fread operation is a repeat on buff with the normal size for wBitsPerSample
+	After this, contents.wBitsPerSample is defined due to the eighth operation
+	
+	This completes the reading of the 'fmt' chunk of the .wav file - PSR, 2021-06-04
+	*/
+	
+	result = fread(contents.ckID2, sizeof(contents.ckID2), 1, wavFile);
+	
+	result = fread(buff, sizeof(uint32_t), 1, wavFile);
+	contents.cksize2 = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	
+	result = fread(buff, sizeof(uint16_t), 1, wavFile);
+	contents.wFormatTag = ((buff[0]) | (buff[1] << 8));
+	
+	result = fread(buff, sizeof(uint16_t), 1, wavFile);
+	contents.nChannels = ((buff[0]) | (buff[1] << 8));
+	
+	result = fread(buff, sizeof(uint32_t), 1, wavFile);
+	contents.nSamplesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	
+	result = fread(buff, sizeof(uint32_t), 1, wavFile);
+	contents.nAvgBytesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	
+	result = fread(buff, sizeof(uint16_t), 1, wavFile);
+	contents.nBlockAlign = ((buff[0]) | (buff[1] << 8));
+	
+	result = fread(buff, sizeof(uint16_t), 1, wavFile);
+	contents.wBitsPerSample = ((buff[0])) | (buff[1] << 8));
+	
+	/*
+	The next bit of parsing with fread operations will take in values for the data
+	
+	The first fread operation takes in the value for ckID3, which we know is 'data'
+	
+	The second fread operation is a repeat on buff with the normal size for cksize3
+	After this, contents.cksize3 is defined due to the second operation
+	
+	This completes the reading of the 'data' chunk of the .wav file - PSR, 2021-06-04
+	*/
+	
+	result = fread(contents.ckID3, sizeof(contents.ckID3), 1, wavFile);
+	
+	result = fread(buff, sizeof(uint32_t), 1, wavFile);
+	contents.cksize3 = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+		
 	//Perform mu-law compression - use bit shifts to account for ln(n) = (log2(n))/(log2(e))
 	
 	//Perform mu-law decompression - reversed process to compression
