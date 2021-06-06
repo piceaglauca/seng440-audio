@@ -190,6 +190,11 @@ int main(int argc, char **argv)
 	
 	result = fread(buff, sizeof(uint32_t), 1, wavFile);
 	contents.cksize3 = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+	
+	/*
+	Now that the data has actually been parsed, the samples within it, which are of the PCM format type, are further parsed
+	This parsing is to actually access the data samples so that they can later undergo mu-law compression and decompression	
+	*/
 		
 	//Perform mu-law compression - use bit shifts to account for ln(n) = (log2(n))/(log2(e))
 	
