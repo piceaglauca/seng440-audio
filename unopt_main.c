@@ -70,13 +70,13 @@ typedef struct wavContents
 
 void checkTestFile(wavContents *contents) {
 	//unsigned char RIFF[4];
-	assert (strncmp (contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
+	assert (strncmp ((char*)contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
 
 	//uint32_t riff_size;
 	assert (contents->riff_size == 48734362);
 
 	//unsigned char WAVEID[4];
-	assert (strncmp (contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
+	assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
 	
 	/*
 	This second piece is about the format chunk marker of the .wav file that will be uploaded
@@ -94,7 +94,7 @@ void checkTestFile(wavContents *contents) {
 	*/
 	
 	//unsigned char fmtID[4];
-    assert (strncmp (contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
+    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
 
 	//uint32_t fmt_size;
     assert (contents->fmt_size == 16);
@@ -126,7 +126,7 @@ void checkTestFile(wavContents *contents) {
 	*/
 	
 	//unsigned char dataID[4];
-    assert (strncmp (contents->dataID, "data", sizeof(contents->dataID)) == 0);
+    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0);
 
 	//uint32_t data_size;
     assert (contents->data_size == 48734208);
@@ -179,14 +179,14 @@ void readWavFile(char* filename, wavContents * contents) {
 	size_t result;
 	
 	result = fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
-    assert (strncmp(contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0); // can't continue if not RIFF file
+    assert (strncmp ((char*) contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0); // can't continue if not RIFF file
 	
 	result = fread(buff, sizeof(u_int32_t), 1, wavFile);
 	contents->riff_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->riff_size > 0);
 	
 	result = fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
-    assert (strncmp(contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0); // can't continue if not WAVE file
+    assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0); // can't continue if not WAVE file
 	
 	/*
 	The next bit of parsing with fread operations will take in values for the format chunk marker
@@ -218,7 +218,7 @@ void readWavFile(char* filename, wavContents * contents) {
 	*/
 	
 	result = fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
-    assert (strncmp(contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0); // can't continue without fmt chunk
+    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0); // can't continue without fmt chunk
 	
 	result = fread(buff, sizeof(u_int32_t), 1, wavFile);
 	contents->fmt_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
@@ -255,12 +255,12 @@ void readWavFile(char* filename, wavContents * contents) {
      * we're still in the file header.
      */
 	result = fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
-    while (strncmp (contents->dataID, "data", sizeof(contents->dataID)) != 0) {
+    while (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) != 0) {
         // Move back "data" - 1 byte
         fseek(wavFile, 1 - sizeof(contents->dataID), SEEK_CUR);
         result = fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     }
-    assert (strncmp(contents->dataID, "data", sizeof(contents->dataID)) == 0); // can't continue without data chunk
+    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0); // can't continue without data chunk
 	
     // Read the size of the data chunk, and remember the offset
 	result = fread(buff, sizeof(u_int32_t), 1, wavFile);
@@ -277,7 +277,7 @@ void readWavFile(char* filename, wavContents * contents) {
     /**
      * Read the PCM data from the WAVE data chunk
      */
-    contents->data = (char*) malloc (contents->data_size);
+    contents->data = (unsigned char*) malloc (contents->data_size);
     if (contents->data == NULL) {
         fprintf (stderr, "malloc failed\n");
         exit(1);
