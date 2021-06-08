@@ -3,49 +3,74 @@
 #include <assert.h>
 #include <string.h>
 
-typedef struct wavContents
+typedef struct wave
 {
-	/*
-	Going by the WAVE Specs .pdf that SH pushed to the GitHub in creating this struct
-	The purpose of this struct is for parsing the .wav file that will be uploaded
-	The struct is split in pieces, though it could be split into three different structs
-	
-	This first piece is about the Header of the .wav file that will be uploaded
-	The Header has three components: RIFF, riff_size and WAVEID
-	
-	RIFF refers to the Chunk ID, which is 'RIFF', taking up 4 bytes
-	riff_size refers to the overall size of the file and is recorded in bytes - expected to be 4-8 bytes
-	WAVEID refers to the file type header and it is a string that markes it as a 'WAVE' - it is 4 bytes - PSR, 2021-05-28	
-	*/
-	
+    /** 
+     * Chunk ID: "RIFF" 
+     * Note: we probably don't need to store this.
+     */
 	unsigned char RIFF[4];
-    // riff_size + 8 = file_size. It is assumed that the 8 bytes is for the 
-    //   chunk ID and size for the RIFF structure
+
+    /**
+     * RIFF size is the number of bytes following the size field.
+     * Total file size is 8 + riff_size. 8 bytes from the ID and size fields.
+     */
 	u_int32_t riff_size; 
+
+    /**
+     * Chunk ID: "WAVE"
+     * Note: we probably don't need to store this.
+     */
 	unsigned char WAVEID[4];
 	
-	/*
-	This second piece is about the format chunk marker of the .wav file that will be uploaded
-	The format chunk marker has the components: fmtID, fmt_size, wFormatTag, nChannels, nSamplesPerSec, nAvgBytesPerSec, nBlockAlign, wBitsPerSample
-	
-	fmtID refers to the CHUNK ID, which is 'fmt ', taking up 4 bytes
-	fmt_size refers to the overall size of the format data
-	wFormatTag refers to the format code, uint16_t is used here since it is clearly smaller
-	nChannels refers to the number of interleaved channels, also uint16_t since it is smaller
-	nSamplesPerSec refers to the sampling rate (blocks per second)
-	nAvgBytesPerSec refers to the data rate
-	nBlockAlign refers to the data block size in bytes, it should be 4 bytes
-	wBitsPerSample refers to the bits per sample (it is the nBlockAlign / nChannels) - PSR, 2021-05-28
-	
-	*/
-	
+    /**
+     * Chunk ID: "fmt " (space is intentional, to make field 4 bytes)
+     * Note: we probably don't need to store this.
+     */
 	unsigned char fmtID[4];
+
+    /**
+     * Size of the fmt chunk. Should be 16 bytes for an uncompressed PCM file.
+     * Otherwise, it can be 18 or 40 bytes for other formats (not supported here).
+     */
 	u_int32_t fmt_size;
+
+    /**
+     * WAVE format code:
+     * 0x0001 WAVE_FORMAT_PCM (only format supported here)
+     * 0x0003 WAVE_FORMAT_IEEE_FLOAT
+     * 0x0006 WAVE_FORMAT_ALAW
+     * 0x0007 WAVE_FORMAT_MULAW
+     * 0xFFFE WAVE_FORMAT_EXTENSIVE
+     */
 	u_int16_t wFormatTag;
+    
+    /**
+     * Number of channels in a sample frame. Can be 1 or 2.
+     * Additional channels require an unsupported format.
+     */
 	u_int16_t nChannels;
+
+    /**
+     * Audio bitrate, in Hertz. The number of sample frames per second.
+     */
 	u_int32_t nSamplesPerSec;
+
+    /**
+     * = nSamplesPerSec * wBitsPerSample
+     */
 	u_int32_t nAvgBytesPerSec;
+
+    /**
+     * Number of bytes used to store a sample frame. All channels are contained
+     * within a frame.
+     */
 	u_int32_t nBlockAlign;
+
+    /**
+     * Number of bits used to store a single sample, where a sample is a single
+     * channel.
+     */
 	u_int16_t wBitsPerSample;
 	
 	/*
@@ -56,19 +81,54 @@ typedef struct wavContents
 	data_size refers to the overall size of the data
 	*/
 	
+    /**
+     * Chunk ID: "data"
+     * Note: we probably don't need to store this.
+     */
 	unsigned char dataID[4];
+
+    /**
+     * Size of the data chunk, in bytes.
+     */
 	u_int32_t data_size;
 
-    u_int32_t data_offset; // the offset from the beginning of the file where the data section starts
-    u_int32_t file_size;
-    u_int32_t numSamples;
-    u_int16_t bytesPerSample;
-
+    /**
+     * Data array for each sample following the data chunk ID and size.
+     * Size of array will be given in the chunk size (data_size).
+     */
     unsigned char * data; // PCM data
-	
-} wavContents;
 
-void checkTestFile(wavContents *contents) {
+    /**
+     * File offset (from beginning) to where the data chunk contents starts.
+     * This position is after the chunk ID and chunk size. Seeking to this 
+     * location will put the file pointer at actual audio data.
+     */
+    u_int32_t data_offset;
+
+    /**
+     * File size calculated from 8+riff_size.
+     * Note: we probably don't need to store this. Storing one of riff_size or
+     * file_size may be important, but both are not necessary.
+     */
+    u_int32_t file_size;
+
+    /**
+     * Number of sample frames, where a frame contains one sample from each
+     * channel.
+     * Calculated from: (8 * data_size) / (nChannels * wBitsPerSample);
+     */
+    u_int32_t numSampleFrames;
+
+    /**
+     * Number of bytes per sample frame, where a frame contains one sample for
+     * each channel.
+     * Calculated from: (nChannels * wBitsPerSample) / 8;
+     */
+    u_int16_t bytesPerSampleFrame;
+	
+} wave;
+
+void checkTestFile(wave *contents) {
 	//unsigned char RIFF[4];
 	assert (strncmp ((char*)contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
 
@@ -132,7 +192,7 @@ void checkTestFile(wavContents *contents) {
     assert (contents->data_size == 48734208);
 }
 
-void readWavFile(char* filename, wavContents * contents) {
+void readWavFile(char* filename, wave * contents) {
     /**
 	 * fopen is used to open the .wav file specified by argv[1] and associate 
      * it with a stream accessed by the wavFile pointer "rb" - "r" refers to 
@@ -159,7 +219,7 @@ void readWavFile(char* filename, wavContents * contents) {
 	//Start reading the .wav file
 	
 	/*
-	Start with intializing the object of the struct wavContents to actually hold the parsed data
+	Start with intializing the object of the struct wave to actually hold the parsed data
 	In this case, the object will simply be called contents
 	size_t result is used for the fread() function as shown here http://www.cplusplus.com/reference/cstdio/fread/
 	
@@ -271,8 +331,8 @@ void readWavFile(char* filename, wavContents * contents) {
 
     // Calculate some details about the file
     contents->file_size = 8 + contents->riff_size; // 8 bytes for the RIFF ckID and cksize
-    contents->numSamples = (8 * contents->data_size) / (contents->nChannels * contents->wBitsPerSample);
-    contents->bytesPerSample = (contents->nChannels * contents->wBitsPerSample) / 8;
+    contents->numSampleFrames = (8 * contents->data_size) / (contents->nChannels * contents->wBitsPerSample);
+    contents->bytesPerSampleFrame = (contents->nChannels * contents->wBitsPerSample) / 8;
 
     /**
      * Read the PCM data from the WAVE data chunk
@@ -307,12 +367,12 @@ int main(int argc, char **argv)
 	argv[1] - the .wav file that is called as the second argument
 	*/
 	
-	wavContents * contents = (wavContents*) malloc (sizeof(wavContents));
+	wave * contents = (wave*) malloc (sizeof(wave));
     if (contents == NULL) {
         fprintf (stderr, "malloc failed\n");
         exit(1);
     } else {
-        memset (contents, 0, sizeof(wavContents));
+        memset (contents, 0, sizeof(wave));
     }
 
     readWavFile (argv[1], contents);
