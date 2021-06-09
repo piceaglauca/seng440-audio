@@ -349,6 +349,66 @@ void readWavFile(char* filename, wave * contents) {
 	fclose(wavFile);
 }
 
+/**
+ * The following is taken from 
+ * https://web.archive.org/web/20110719132013/http://hazelware.luggle.com/tutorials/mulawcompression.html
+ * Author unknown. Original host site is no longer available.
+ * Accessed 2021-06-08
+ */
+const int cBias = 0x84;
+const int cClip = 32635;
+
+static char MuLawCompressTable[256] =
+{
+     0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
+     4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+     5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+     5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
+};
+
+unsigned char LinearToMuLawSample(short sample)
+{
+     int sign = (sample >> 8) & 0x80;
+     if (sign)
+          sample = (short)-sample;
+     if (sample > cClip)
+          sample = cClip;
+     sample = (short)(sample + cBias);
+     int exponent = (int)MuLawCompressTable[(sample>>7) & 0xFF];
+     int mantissa = (sample >> (exponent+3)) & 0x0F;
+     int compressedByte = ~ (sign | (exponent << 4) | mantissa);
+
+     return (unsigned char)compressedByte;
+}
+/** End of borrowed code */
+
+/**
+ * Implementation of mu-law quantizer. Input is 
+ */
+void compress (wave * contents, char * filename) {
+    short sample = 0;
+
+    FILE * outfile = fopen (filename, "wb");
+    for (int i = 0; i < contents->numSampleFrames * contents->nChannels; i++) {
+        sample = contents->data[i] | (contents->data[i+1] << 8);
+        unsigned char compressed = LinearToMuLawSample (sample);
+        fwrite (&compressed, sizeof(compressed), 1, outfile);
+    }
+    fclose(outfile);
+}
+
 int main(int argc, char **argv)
 {
 	/*
@@ -377,6 +437,21 @@ int main(int argc, char **argv)
 
     readWavFile (argv[1], contents);
     checkTestFile(contents);
+
+    printf ("%20s: %8hd %s\n", "nChannels", contents->nChannels, "from header");
+    printf ("%20s: %8d %s\n", "nSamplesPerSec", contents->nSamplesPerSec, "from header");
+    printf ("%20s: %8d %s\n", "nAvgBytesPerSec", contents->nAvgBytesPerSec, "from header");
+    printf ("%20s: %8d %s\n", "nBlockAlign", contents->nBlockAlign, "from header");
+    printf ("%20s: %8hd %s\n", "wBitsPerSample", contents->wBitsPerSample, "from header");
+    printf ("%20s: %8d %s\n", "data_size", contents->data_size, "from data chksize");
+    printf ("%20s: %8d %s\n", "riff_size", contents->riff_size, "from riff chksize");
+    printf ("%20s: %8d %s\n", "file_size", contents->file_size, "calc from 8+riff_size");
+    printf ("%20s: %8d %s\n", "data_offset", contents->data_offset, "found in file scan");
+    printf ("%20s: %8d %s\n", "numSampleFrames", contents->numSampleFrames, 
+            "calc from (8*data_size)/(nChannels * wBitsPerSample)");
+    printf ("%20s: %8hd %s\n", "bytesPerSampleFrame", contents->bytesPerSampleFrame, 
+            "calc from (nChannels * wBitsPerSample) / 8");
+    compress(contents, "test_compress.out");
 
     if (contents->data != NULL) {
         free(contents->data);
