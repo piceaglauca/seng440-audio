@@ -473,8 +473,8 @@ void compress (wave * contents, char * filename) {
  * Side effect: writes to a file (overwriting if the file exists).
  */
 void decompress (char * infilename, char * outfilename) {
-    char compressed = 0;
-    short decompressed = 0;
+    unsigned char compressed = 0;
+    u_int16_t decompressed = 0;
 
     FILE * infile = fopen (infilename, "rb");
     FILE * outfile = fopen (outfilename, "wb");
@@ -488,7 +488,7 @@ void decompress (char * infilename, char * outfilename) {
      * Source: https://web.archive.org/web/20110719132013/http://hazelware.luggle.com/tutorials/mulawcompression.html
      */
     while (fread(&compressed, sizeof(compressed), 1, infile) == 1) {
-        decompressed = (short) MuLawDecompressTable[(int)compressed];
+        decompressed = (u_int16_t) MuLawDecompressTable[(int)compressed];
         fwrite(&decompressed, sizeof(decompressed), 1, outfile);
     }
     fclose (outfile);
