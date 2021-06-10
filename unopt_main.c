@@ -378,6 +378,42 @@ static char MuLawCompressTable[256] =
      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
 };
 
+static short MuLawDecompressTable[256] =
+{
+     -32124,-31100,-30076,-29052,-28028,-27004,-25980,-24956,
+     -23932,-22908,-21884,-20860,-19836,-18812,-17788,-16764,
+     -15996,-15484,-14972,-14460,-13948,-13436,-12924,-12412,
+     -11900,-11388,-10876,-10364, -9852, -9340, -8828, -8316,
+      -7932, -7676, -7420, -7164, -6908, -6652, -6396, -6140,
+      -5884, -5628, -5372, -5116, -4860, -4604, -4348, -4092,
+      -3900, -3772, -3644, -3516, -3388, -3260, -3132, -3004,
+      -2876, -2748, -2620, -2492, -2364, -2236, -2108, -1980,
+      -1884, -1820, -1756, -1692, -1628, -1564, -1500, -1436,
+      -1372, -1308, -1244, -1180, -1116, -1052,  -988,  -924,
+       -876,  -844,  -812,  -780,  -748,  -716,  -684,  -652,
+       -620,  -588,  -556,  -524,  -492,  -460,  -428,  -396,
+       -372,  -356,  -340,  -324,  -308,  -292,  -276,  -260,
+       -244,  -228,  -212,  -196,  -180,  -164,  -148,  -132,
+       -120,  -112,  -104,   -96,   -88,   -80,   -72,   -64,
+        -56,   -48,   -40,   -32,   -24,   -16,    -8,    -1,
+      32124, 31100, 30076, 29052, 28028, 27004, 25980, 24956,
+      23932, 22908, 21884, 20860, 19836, 18812, 17788, 16764,
+      15996, 15484, 14972, 14460, 13948, 13436, 12924, 12412,
+      11900, 11388, 10876, 10364,  9852,  9340,  8828,  8316,
+       7932,  7676,  7420,  7164,  6908,  6652,  6396,  6140,
+       5884,  5628,  5372,  5116,  4860,  4604,  4348,  4092,
+       3900,  3772,  3644,  3516,  3388,  3260,  3132,  3004,
+       2876,  2748,  2620,  2492,  2364,  2236,  2108,  1980,
+       1884,  1820,  1756,  1692,  1628,  1564,  1500,  1436,
+       1372,  1308,  1244,  1180,  1116,  1052,   988,   924,
+        876,   844,   812,   780,   748,   716,   684,   652,
+        620,   588,   556,   524,   492,   460,   428,   396,
+        372,   356,   340,   324,   308,   292,   276,   260,
+        244,   228,   212,   196,   180,   164,   148,   132,
+        120,   112,   104,    96,    88,    80,    72,    64,
+         56,    48,    40,    32,    24,    16,     8,     0
+};
+
 unsigned char LinearToMuLawSample(short sample)
 {
      int sign = (sample >> 8) & 0x80;
@@ -395,18 +431,69 @@ unsigned char LinearToMuLawSample(short sample)
 /** End of borrowed code */
 
 /**
- * Implementation of mu-law quantizer. Input is 
+ * Implementation of mu-law compression algorithm.
+ *
+ * Input: wave struct, containing 16-bit sound data
+ *        filename to output compressed data
+ * Output: none
+ * Side effect: writes to a file (overwriting if the file exists).
  */
 void compress (wave * contents, char * filename) {
+    /**
+     * Note: if the wBitsPerSample is greater than 16, a short won't
+     * be enough space to contain the sample.
+     */
     short sample = 0;
 
     FILE * outfile = fopen (filename, "wb");
-    for (int i = 0; i < contents->numSampleFrames * contents->nChannels; i++) {
-        sample = contents->data[i] | (contents->data[i+1] << 8);
+    /**
+     * contents->data_size = the number of bytes in the data chunk. Each 
+     * sample frame contains one sample per channel, at wBitsPerSample each.
+     * 
+     * This for loop iterates over the indices of contents->data, and 
+     * increases by the number of bytes per sample. The inner for loop does a
+     * bitwise OR to collect the entire sample in a short int.
+     */
+    for (int i = 0; i < contents->data_size; i+=contents->wBitsPerSample / 8) {
+        sample = contents->data[i];
+        for (int j = 1; j <= contents->wBitsPerSample / 8; j++) {
+            sample |= contents->data[i+j] << (8 * j);
+        }
         unsigned char compressed = LinearToMuLawSample (sample);
         fwrite (&compressed, sizeof(compressed), 1, outfile);
     }
     fclose(outfile);
+}
+
+/**
+ * Implementation of mu-law decompression algorithm.
+ *
+ * Input: filename to input compressed data from
+ *        filename to output decompressed data
+ * Output: none
+ * Side effect: writes to a file (overwriting if the file exists).
+ */
+void decompress (char * infilename, char * outfilename) {
+    char compressed = 0;
+    short decompressed = 0;
+
+    FILE * infile = fopen (infilename, "rb");
+    FILE * outfile = fopen (outfilename, "wb");
+    /**
+     * For each compressed sample in the input file, decompress it, and write
+     * the result to the output file.
+     * Note: This implementation of decompression uses a 512-byte lookup table
+     * to decompress the 8-bit sample into 16-bits. The index of the value is
+     * simply the 8-bit compressed codeword. The output will be the 
+     * corresponding 16-bit decompressed value.
+     * Source: https://web.archive.org/web/20110719132013/http://hazelware.luggle.com/tutorials/mulawcompression.html
+     */
+    while (fread(&compressed, sizeof(compressed), 1, infile) == 1) {
+        decompressed = (short) MuLawDecompressTable[(int)compressed];
+        fwrite(&decompressed, sizeof(decompressed), 1, outfile);
+    }
+    fclose (outfile);
+    fclose (infile);
 }
 
 int main(int argc, char **argv)
@@ -452,6 +539,7 @@ int main(int argc, char **argv)
     printf ("%20s: %8hd %s\n", "bytesPerSampleFrame", contents->bytesPerSampleFrame, 
             "calc from (nChannels * wBitsPerSample) / 8");
     compress(contents, "test_compress.out");
+    decompress ("test_compress.out", "test_decompress.out");
 
     if (contents->data != NULL) {
         free(contents->data);
