@@ -236,16 +236,15 @@ void readWavFile(char* filename, wave * contents) {
     */
     
     unsigned char buff[4];
-    size_t result;
     
-    result = fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
+    fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
     assert (strncmp ((char*) contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0); // can't continue if not RIFF file
     
-    result = fread(buff, sizeof(u_int32_t), 1, wavFile);
+    fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->riff_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->riff_size > 0);
     
-    result = fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
+    fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
     assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0); // can't continue if not WAVE file
     
     /*
@@ -277,34 +276,34 @@ void readWavFile(char* filename, wave * contents) {
     This completes the reading of the 'fmt' chunk of the .wav file - PSR, 2021-06-04
     */
     
-    result = fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
+    fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
     assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0); // can't continue without fmt chunk
     
-    result = fread(buff, sizeof(u_int32_t), 1, wavFile);
+    fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->fmt_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->fmt_size == 16); // if fmt chunk is longer, this is not a valid PCM WAVE file
     
-    result = fread(buff, sizeof(u_int16_t), 1, wavFile);
+    fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->wFormatTag = ((buff[0]) | (buff[1] << 8));
     assert (contents->wFormatTag == 1); // any other wFormatTag is not PCM WAVE
     
-    result = fread(buff, sizeof(u_int16_t), 1, wavFile);
+    fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->nChannels = ((buff[0]) | (buff[1] << 8));
     assert (contents->nChannels >= 1);
     
-    result = fread(buff, sizeof(u_int32_t), 1, wavFile);
+    fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->nSamplesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->nSamplesPerSec > 0);
     
-    result = fread(buff, sizeof(u_int32_t), 1, wavFile);
+    fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->nAvgBytesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->nAvgBytesPerSec > 0);
     
-    result = fread(buff, sizeof(u_int16_t), 1, wavFile);
+    fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->nBlockAlign = ((buff[0]) | (buff[1] << 8));
     assert (contents->nBlockAlign > 0);
     
-    result = fread(buff, sizeof(u_int16_t), 1, wavFile);
+    fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->wBitsPerSample = ((buff[0]) | (buff[1] << 8));
     assert (contents->wBitsPerSample > 0);
     
@@ -314,16 +313,16 @@ void readWavFile(char* filename, wave * contents) {
      * keep scanning in the file until we find it. It shouldn't be far, since
      * we're still in the file header.
      */
-    result = fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
+    fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     while (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) != 0) {
         // Move back "data" - 1 byte
         fseek(wavFile, 1 - sizeof(contents->dataID), SEEK_CUR);
-        result = fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
+        fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     }
     assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0); // can't continue without data chunk
     
     // Read the size of the data chunk, and remember the offset
-    result = fread(buff, sizeof(u_int32_t), 1, wavFile);
+    fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->data_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     contents->data_offset = ftell(wavFile);
     assert (contents->data_size > 0);
