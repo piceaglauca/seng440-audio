@@ -357,6 +357,7 @@ void readWavFile(char* filename, wave * contents) {
 const int cBias = 0x84;
 const int cClip = 32635;
 
+// 256 bytes (16x16 matrix, 1 byte per element)
 static char MuLawCompressTable[256] =
 {
      0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
@@ -377,6 +378,7 @@ static char MuLawCompressTable[256] =
      7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
 };
 
+// 512 bytes (32x8 matrix, 2 bytes per element
 static short MuLawDecompressTable[256] =
 {
      -32124,-31100,-30076,-29052,-28028,-27004,-25980,-24956,
