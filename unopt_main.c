@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct wave
 {
@@ -499,6 +500,13 @@ void decompress (char * infilename, char * outfilename) {
 
 int main(int argc, char **argv)
 {
+	/*
+	The function clock() is used to return the number of clock ticks elapsed since the program was launched.
+	Given that this is the start of the program, startTime is defined and initialized here. - PSR, 2021-07-13
+	*/
+	clock_t startTime, endTime;
+	startTime = clock();
+	
     /*
     argc and argv are used for file input, which in the case of this file is a 10-second .wav file
     Thus, argc is also first used for error checking as the program will not run without a .wav file - PSR, 2021-05-20
@@ -546,6 +554,15 @@ int main(int argc, char **argv)
         free(contents->data);
     }
     free (contents);
+	
+	/*
+	To get the performance, endTime is finally defined here. But since it is in clock ticks, it is converted into a value in seconds.
+	This conversion is done using the macro CLOCKS_PER_SEC which is provided by the time.h library.
+	It is casted to double for precision to represent the value in seconds, as the difference in the optimized program may be that - PSR, 2021-07-13
+	*/
+	
+	endTime = clock();
+	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((end - start) / CLOCKS_PER_SEC);
     
     return 0;    
 }
