@@ -418,6 +418,13 @@ static short MuLawDecompressTable[256] =
 
 unsigned char LinearToMuLawSample(short sample)
 {
+    /*
+     * Inserts a marker into the assembly. 
+     * Search for regex: ^@[^"]*"opt_main.c
+     */
+    asm("nop");
+
+
      int sign = (sample >> 8) & 0x80;
      if (sign)
           sample = (short)-sample;
@@ -428,6 +435,11 @@ unsigned char LinearToMuLawSample(short sample)
      int mantissa = (sample >> (exponent+3)) & 0x0F;
      int compressedByte = ~ (sign | (exponent << 4) | mantissa);
 
+    /*
+     * Inserts a marker into the assembly. 
+     * Search for regex: ^@[^"]*"opt_main.c
+     */
+    asm("nop");
      return (unsigned char)compressedByte;
 }
 /** End of borrowed code */
