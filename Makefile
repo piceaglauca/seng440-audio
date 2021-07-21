@@ -8,32 +8,30 @@ OPT_ASM=opt_main.asm
 OPT_OUT=opt_main
 OUTFILES=$(UNOPT_OUT) $(OPT_OUT) $(OPT_ASM)
 
-.PHONY: unopt
-unopt: unopt_main
+.PHONY: unopt opt clean testunopt testopt test all
+
+all: opt unopt
+
+unopt: $(UNOPT_OUT)
 
 $(UNOPT_OUT): $(UNOPT_SRC)
 	$(CC) $(CFLAGS) -o $(UNOPT_OUT) $(UNOPT_SRC)
 
-.PHONY: opt
-opt: $(OPT_OUT)
+opt: $(OPT_OUT) $(OPT_ASM)
+
+$(OPT_ASM): $(OPT_SRC)
+	$(CC) $(CFLAGS) -S -o $(OPT_ASM) $(OPT_SRC)
 
 $(OPT_OUT): $(OPT_SRC)
-	$(CC) $(CFLAGS) -S -o $(OPT_ASM) $(OPT_SRC)
 	$(CC) $(CFLAGS) -o $(OPT_OUT) $(OPT_SRC)
 
 clean:
 	rm $(OUT_FILES)
 
-.PHONY: testunopt
 testunopt:
 	./$(UNOPT_OUT) test_file.wav
 
-.PHONY: testopt
 testopt:
 	./$(OPT_OUT) test_file.wav
 
 test: testopt
-
-all: 
-	unopt
-	opt
