@@ -358,27 +358,6 @@ void readWavFile(char* filename, wave * contents) {
 const int cBias = 0x84;
 const int cClip = 32635;
 
-// 256 bytes (16x16 matrix, 1 byte per element)
-static char MuLawCompressTable[256] =
-{
-     0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
-     4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-     5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-     5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-     6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-     7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
-};
-
 // 512 bytes (32x8 matrix, 2 bytes per element
 static short MuLawDecompressTable[256] =
 {
@@ -418,16 +397,37 @@ static short MuLawDecompressTable[256] =
 
 unsigned char LinearToMuLawSample(short sample)
 {
-     int sign = (sample >> 8) & 0x80;
-     if (sign)
-          sample = (short)-sample;
-     if (sample > cClip)
-          sample = cClip;
-     sample = (short)(sample + cBias);
-     int exponent = (int)MuLawCompressTable[(sample>>7) & 0xFF];
+    /*
+     * Inserts a marker into the assembly. 
+     * Search for regex: ^@[^"]*"opt_main.c
+     */
+    asm("nop");
+
+    int sign = sample & 0x8000;
+    if (sign) {
+        sample = (short)-sample;
+    }
+    if (sample == -32768)
+        sample = 32767;
+    if (sample > cClip) // 32635
+        sample = cClip;
+    sample = (short)(sample + cBias); // 0x84 = 132
+
+    int leadingZeroes;
+    asm volatile (
+        "clz\t%0, %1\n"
+        : "=r" (leadingZeroes)
+        : "r"  (sample)
+    );
+    int exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
      int mantissa = (sample >> (exponent+3)) & 0x0F;
      int compressedByte = ~ (sign | (exponent << 4) | mantissa);
 
+    /*
+     * Inserts a marker into the assembly. 
+     * Search for regex: ^@[^"]*"opt_main.c
+     */
+    asm("nop");
      return (unsigned char)compressedByte;
 }
 /** End of borrowed code */
@@ -577,7 +577,7 @@ int main(int argc, char **argv)
 	*/
 	
 	endTime = clock();
-	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((end - start) / CLOCKS_PER_SEC);
+	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((endTime - startTime) / CLOCKS_PER_SEC));
     
     return 0;    
 }
