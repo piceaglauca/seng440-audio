@@ -420,15 +420,15 @@ unsigned char LinearToMuLawSample(int16_t sample)
         : "r"  (sample)
     );
     int32_t exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
-    int32_t mantissa = (sample >> (exponent+3)) & 0x0F;
-    int32_t compressedByte = ~ (sign | (exponent << 4) | mantissa);
+    int32_t mantissa = (sample >> (exponent+3)) & 0xF;
+    unsigned char compressedByte = ~ ((sign >> 8) | (exponent << 4) | mantissa);
 
     /*
      * Inserts a marker into the assembly. 
      * Search for regex: ^@[^"]*"opt_main.c
      */
     asm("nop");
-    return (unsigned char)compressedByte;
+    return compressedByte;
 }
 /** End of borrowed code */
 
