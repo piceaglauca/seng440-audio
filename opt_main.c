@@ -355,11 +355,11 @@ void readWavFile(char* filename, wave * contents) {
  * Author unknown. Original host site is no longer available.
  * Accessed 2021-06-08
  */
-const u_int32_t cBias = 0x84;
-const u_int32_t cClip = 32635;
+const int32_t cBias = 0x84;
+const int32_t cClip = 32635;
 
 // 512 bytes (32x8 matrix, 2 bytes per element
-static u_int16_t MuLawDecompressTable[256] =
+static int16_t MuLawDecompressTable[256] =
 {
     -32124,-31100,-30076,-29052,-28028,-27004,-25980,-24956,
     -23932,-22908,-21884,-20860,-19836,-18812,-17788,-16764,
@@ -395,7 +395,7 @@ static u_int16_t MuLawDecompressTable[256] =
         56,    48,    40,    32,    24,    16,     8,     0
 };
 
-unsigned char LinearToMuLawSample(u_int16_t sample)
+unsigned char LinearToMuLawSample(int16_t sample)
 {
     /*
      * Inserts a marker into the assembly. 
@@ -403,25 +403,25 @@ unsigned char LinearToMuLawSample(u_int16_t sample)
      */
     asm("nop");
 
-    u_int32_t sign = sample & 0x8000;
+    int32_t sign = sample & 0x8000;
     if (sign) {
-        sample = (u_int16_t)-sample;
+        sample = (int16_t)-sample;
     }
     if (sample == -32768)
         sample = 32767;
     if (sample > cClip) // 32635
         sample = cClip;
-    sample = (u_int16_t)(sample + cBias); // 0x84 = 132
+    sample = (int16_t)(sample + cBias); // 0x84 = 132
 
-    u_int32_t leadingZeroes;
+    int32_t leadingZeroes;
     asm volatile (
         "clz\t%0, %1\n"
         : "=r" (leadingZeroes)
         : "r"  (sample)
     );
-    u_int32_t exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
-    u_int32_t mantissa = (sample >> (exponent+3)) & 0x0F;
-    u_int32_t compressedByte = ~ (sign | (exponent << 4) | mantissa);
+    int32_t exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
+    int32_t mantissa = (sample >> (exponent+3)) & 0x0F;
+    int32_t compressedByte = ~ (sign | (exponent << 4) | mantissa);
 
     /*
      * Inserts a marker into the assembly. 
@@ -460,7 +460,7 @@ void compress (wave * contents, char * filename) {
      * Note: if the wBitsPerSample is greater than 16, a short won't
      * be enough space to contain the sample.
      */
-    u_int16_t sample = 0;
+    int16_t sample = 0;
 
     FILE * outfile = fopen (filename, "wb");
     /**
