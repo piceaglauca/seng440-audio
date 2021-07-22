@@ -421,6 +421,8 @@ unsigned char LinearToMuLawSample(short sample)
     int sign = (sample >> 8) & 0x80;
     if (sign)
         sample = (short)-sample;
+    if (sample == -32768)
+        sample = 32767;
     if (sample > cClip)
         sample = cClip;
     sample = (short)(sample + cBias);
