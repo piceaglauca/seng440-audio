@@ -402,26 +402,35 @@ unsigned char LinearToMuLawSample(int16_t sample)
      * Search for regex: ^@[^"]*"opt_main.c
      */
     asm("nop");
+    register u_int32_t sign;
+    register int32_t leadingZeroes, exponent, mantissa;
+    register unsigned char compressedByte;
 
-    int32_t sign = sample & 0x8000;
-    if (sign) {
-        sample = (int16_t)-sample;
-    }
-    if (sample == -32768)
-        sample = 32767;
-    if (sample > cClip) // 32635
-        sample = cClip;
-    sample = (int16_t)(sample + cBias); // 0x84 = 132
-
-    int32_t leadingZeroes;
+    /*
+     * The following sets sign bit to 0 (sample is positive) 
+     * or 1 (sample is negative).
+     * Sets sample to magnitude + bias (0x84) and handles the case
+     * of sample = -32768, since then sample == -sample
+     */
     asm volatile (
-        "clz\t%0, %1\n"
+        "asrs\t%0, %1, #15\n" // get sign from sample, set carry bit
+        "rsbcs\t%1, %1, #0\n" // if carry bit set, sample = -sample
+        "add\t%1,%1,%2\n" // sample = sample + cBias
+        "movcs\t%1,#32767\n" // if sample overflowed, sample = max short
+        "cmp\t%1,#32768\n" // check if sample is still negative
+        "movge\t%1,#32767\n" // in which case sample == max neg short
+        : "+r" (sign), "+r" (sample)
+        : "i" (cBias)
+    );
+
+    asm volatile (
+        "clz\t%0, %1\n" // count leading zeroes of sample
         : "=r" (leadingZeroes)
         : "r"  (sample)
     );
-    int32_t exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
-    int32_t mantissa = (sample >> (exponent+3)) & 0xF;
-    unsigned char compressedByte = ~ ((sign >> 8) | (exponent << 4) | mantissa);
+    exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
+    mantissa = (sample >> (exponent+3)) & 0xF;
+    compressedByte = ~ ((sign << 7) | (exponent << 4) | mantissa);
 
     /*
      * Inserts a marker into the assembly. 
