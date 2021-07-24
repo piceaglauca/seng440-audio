@@ -402,35 +402,42 @@ unsigned char LinearToMuLawSample(int16_t sample)
      * Search for regex: ^@[^"]*"opt_main.c
      */
     asm("nop");
+    register int32_t localSample = (int32_t) sample;
     register u_int32_t sign;
     register int32_t leadingZeroes, exponent, mantissa;
     register unsigned char compressedByte;
 
-    /*
-     * The following sets sign bit to 0 (sample is positive) 
-     * or 1 (sample is negative).
-     * Sets sample to magnitude + bias (0x84) and handles the case
-     * of sample = -32768, since then sample == -sample
-     */
-    asm volatile (
-        "asrs\t%0, %1, #15\n" // get sign from sample, set carry bit
-        "rsbcs\t%1, %1, #0\n" // if carry bit set, sample = -sample
-        "add\t%1,%1,%2\n" // sample = sample + cBias
-        "movcs\t%1,#32767\n" // if sample overflowed, sample = max short
-        "cmp\t%1,#32768\n" // check if sample is still negative
-        "movge\t%1,#32767\n" // in which case sample == max neg short
-        : "+r" (sign), "+r" (sample)
-        : "i" (cBias)
-    );
+    /* If sample was negative, sign = 1. if sample was positive, sign = 0 */
+    sign = (localSample >> 15) & 0x1;
+
+    /* Get magnitude (absolute value) from sample */
+    localSample = (localSample < 0) ? -localSample : localSample;
+    
+    /* Cannot deal with value outside of 16 bits. 
+     * cClip = (2^16 - 1) - cBias */
+    //localSample = (localSample < cClip) ? localSample + cBias : 32767;
+    // ^ assembles to branch. Replaced with below.
+    localSample += cBias;
+    localSample = (localSample < 32767) ? localSample : 32767;
 
     asm volatile (
         "clz\t%0, %1\n" // count leading zeroes of sample
         : "=r" (leadingZeroes)
-        : "r"  (sample)
+        : "r" (localSample)
     );
-    exponent = 24 - leadingZeroes; // this does the equivalent of the lookup table
-    mantissa = (sample >> (exponent+3)) & 0xF;
-    compressedByte = ~ ((sign << 7) | (exponent << 4) | mantissa);
+
+    /* Calculate exponent from leading zeroes. Does the equivalent of the 
+     * lookup table from the unoptimized code. */
+    //exponent = (leadingZeroes != 0) ? 24 - leadingZeroes : 0;
+    // ^ assembles to branch. Replaced with below.
+    exponent = 24 - leadingZeroes;
+    exponent = (exponent > 0) ? exponent : 0;
+
+    /* Mantissa is the four bits to the right of the exponent position */
+    mantissa = (localSample >> (exponent+3)) & 0xF;
+
+    /* Form compressed byte and cast to unsigned char */
+    compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | mantissa);
 
     /*
      * Inserts a marker into the assembly. 
