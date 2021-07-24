@@ -1,4 +1,4 @@
-CC=gcc
+CC=armv7hl-redhat-linux-gnueabi-gcc
 CFLAGS=-g -Wall
 
 UNOPT_SRC=unopt_main.c
