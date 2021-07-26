@@ -401,27 +401,32 @@ unsigned char LinearToMuLawSample(int16_t sample)
      * Inserts a marker into the assembly. 
      * Search for regex: ^@[^"]*"opt_main.c
      */
-    asm("nop");
+    asm("@start of function");
     register int32_t localSample = (int32_t) sample;
     register u_int32_t sign;
     register int32_t leadingZeroes, exponent, mantissa;
     register unsigned char compressedByte;
+    asm("@end of register local var declarations");
 
     /* If sample was negative, sign = 1. if sample was positive, sign = 0 */
+    asm("@sign = (localSample >> 15) & 0x1");
     sign = (localSample >> 15) & 0x1;
 
     /* Get magnitude (absolute value) from sample */
+    asm("@localSample = (localSample < 0) ? -localSample : localSample");
     localSample = (localSample < 0) ? -localSample : localSample;
     
     /* Cannot deal with value outside of 16 bits. 
      * cClip = (2^16 - 1) - cBias */
     //localSample = (localSample < cClip) ? localSample + cBias : 32767;
     // ^ assembles to branch. Replaced with below.
+    asm("@localSample += cBias");
     localSample += cBias;
+    asm("@localSample = (localSample < 32767) ? localSample : 32767");
     localSample = (localSample < 32767) ? localSample : 32767;
 
     asm volatile (
-        "clz\t%0, %1\n" // count leading zeroes of sample
+        "clz\t%0, %1" // count leading zeroes of sample
         : "=r" (leadingZeroes)
         : "r" (localSample)
     );
@@ -430,20 +435,24 @@ unsigned char LinearToMuLawSample(int16_t sample)
      * lookup table from the unoptimized code. */
     //exponent = (leadingZeroes != 0) ? 24 - leadingZeroes : 0;
     // ^ assembles to branch. Replaced with below.
+    asm("@exponent = 24 - leadingZeroes");
     exponent = 24 - leadingZeroes;
+    asm("@exponent = (exponent > 0) ? exponent : 0");
     exponent = (exponent > 0) ? exponent : 0;
 
     /* Mantissa is the four bits to the right of the exponent position */
+    asm("@mantissa = (localSample >> (exponent+3)) & 0xF");
     mantissa = (localSample >> (exponent+3)) & 0xF;
 
     /* Form compressed byte and cast to unsigned char */
+    asm("@compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | manttissa)");
     compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | mantissa);
 
     /*
      * Inserts a marker into the assembly. 
      * Search for regex: ^@[^"]*"opt_main.c
      */
-    asm("nop");
+    asm("@return compressedByte");
     return compressedByte;
 }
 /** End of borrowed code */
