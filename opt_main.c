@@ -446,7 +446,20 @@ unsigned char LinearToMuLawSample(int16_t sample)
 
     /* Form compressed byte and cast to unsigned char */
     asm("@compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | manttissa)");
-    compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | mantissa);
+    //compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | mantissa);
+    // ^ assembles to several unnecessary uxth instructions
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+    asm volatile (
+        "mov\t%0, %1, lsl #7\n\t"
+        "orr\t%0, %0, %2, lsl #4\n\t"
+        "orr\t%0, %0, %3\n\t"
+        "mvn\t%0, %0\n\t"
+        "uxth %0, %0"
+        : "+r" (compressedByte)
+        : "r" (sign), "r" (exponent), "r" (mantissa)
+    );
+#pragma GCC diagnostic pop
 
     /*
      * Inserts a marker into the assembly. 
