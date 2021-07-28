@@ -455,7 +455,7 @@ unsigned char LinearToMuLawSample(int16_t sample)
         "orr\t%0, %0, %2, lsl #4\n\t"
         "orr\t%0, %0, %3\n\t"
         "mvn\t%0, %0\n\t"
-        "uxth %0, %0"
+        "uxtb %0, %0"
         : "+r" (compressedByte)
         : "r" (sign), "r" (exponent), "r" (mantissa)
     );
@@ -466,7 +466,7 @@ unsigned char LinearToMuLawSample(int16_t sample)
      * Search for regex: ^@[^"]*"opt_main.c
      */
     asm("@return compressedByte");
-    return compressedByte;
+    return (unsigned char) compressedByte;
 }
 /** End of borrowed code */
 
