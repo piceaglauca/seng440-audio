@@ -564,7 +564,7 @@ int main(int argc, char **argv)
 	*/
 	
 	endTime = clock();
-	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((endTime - startTime) / CLOCKS_PER_SEC));
+	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((endTime - startTime) / (1.0 * CLOCKS_PER_SEC)));
     
     return 0;    
 }
