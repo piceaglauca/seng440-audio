@@ -2,9 +2,10 @@ CC=armv7hl-redhat-linux-gnueabi-gcc
 CFLAGS=-Wall
 
 UNOPT_SRC=unopt_main.c
+UNOPT_ASM=unopt_main.s
 UNOPT_OUT=unopt_main
 OPT_SRC=opt_main.c
-OPT_ASM=opt_main.asm
+OPT_ASM=opt_main.s
 OPT_OUT=opt_main
 OUTFILES=$(UNOPT_OUT) $(OPT_OUT) $(OPT_ASM)
 
@@ -12,10 +13,13 @@ OUTFILES=$(UNOPT_OUT) $(OPT_OUT) $(OPT_ASM)
 
 all: opt unopt
 
-unopt: $(UNOPT_OUT)
+unopt: $(UNOPT_OUT) $(UNOPT_ASM)
 
 $(UNOPT_OUT): $(UNOPT_SRC)
 	$(CC) $(CFLAGS) -g -o $(UNOPT_OUT) $(UNOPT_SRC)
+
+$(UNOPT_ASM): $(UNOPT_SRC)
+	$(CC) $(CFLAGS) -S -o $(UNOPT_ASM) $(UNOPT_SRC)
 
 opt: $(OPT_OUT) $(OPT_ASM)
 
