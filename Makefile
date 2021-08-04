@@ -1,5 +1,5 @@
 CC=armv7hl-redhat-linux-gnueabi-gcc
-CFLAGS=-Wall
+CFLAGS=-Wall -O3
 
 SRC_FILE=main.c
 ASM_FILE=main.s
