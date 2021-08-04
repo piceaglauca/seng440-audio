@@ -642,20 +642,6 @@ int main(int argc, char **argv)
     readWavFile (argv[1], contents);
     checkTestFile(contents);
 
-    printf ("%20s: %8hd %s\n", "nChannels", contents->nChannels, "from header");
-    printf ("%20s: %8d %s\n", "nSamplesPerSec", contents->nSamplesPerSec, "from header");
-    printf ("%20s: %8d %s\n", "nAvgBytesPerSec", contents->nAvgBytesPerSec, "from header");
-    printf ("%20s: %8d %s\n", "nBlockAlign", contents->nBlockAlign, "from header");
-    printf ("%20s: %8hd %s\n", "wBitsPerSample", contents->wBitsPerSample, "from header");
-    printf ("%20s: %8d %s\n", "data_size", contents->data_size, "from data chksize");
-    printf ("%20s: %8d %s\n", "riff_size", contents->riff_size, "from riff chksize");
-    printf ("%20s: %8d %s\n", "file_size", contents->file_size, "calc from 8+riff_size");
-    printf ("%20s: %8d %s\n", "data_offset", contents->data_offset, "found in file scan");
-    printf ("%20s: %8d %s\n", "numSampleFrames", contents->numSampleFrames, 
-            "calc from (8*data_size)/(nChannels * wBitsPerSample)");
-    printf ("%20s: %8hd %s\n", "bytesPerSampleFrame", contents->bytesPerSampleFrame, 
-            "calc from (nChannels * wBitsPerSample) / 8");
-
     unsigned char (*encodefn_original)(int16_t) = CompressSample_Original;
     unsigned char (*encodefn_lookuptable)(int16_t) = CompressSample_LookupTable;
     unsigned char (*encodefn_optimized)(int16_t) = CompressSample_Optimized;
