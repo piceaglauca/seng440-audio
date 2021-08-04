@@ -355,11 +355,32 @@ void readWavFile(char* filename, wave * contents) {
  * Author unknown. Original host site is no longer available.
  * Accessed 2021-06-08
  */
-const int32_t cBias = 0x84;
-const int32_t cClip = 32635;
+const int cBias = 0x84;
+const int cClip = 32635;
+
+// 256 bytes (16x16 matrix, 1 byte per element)
+static char MuLawCompressTable[256] =
+{
+    0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+    5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+    5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+    6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+    6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+    6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+    6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+    7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
+};
 
 // 512 bytes (32x8 matrix, 2 bytes per element
-static int16_t MuLawDecompressTable[256] =
+static short MuLawDecompressTable[256] =
 {
     -32124,-31100,-30076,-29052,-28028,-27004,-25980,-24956,
     -23932,-22908,-21884,-20860,-19836,-18812,-17788,-16764,
@@ -395,34 +416,39 @@ static int16_t MuLawDecompressTable[256] =
         56,    48,    40,    32,    24,    16,     8,     0
 };
 
-unsigned char LinearToMuLawSample(int16_t sample)
-{
-    /*
-     * Inserts a marker into the assembly. 
-     * Search for regex: ^@[^"]*"opt_main.c
-     */
-    asm("@start of function");
+unsigned char CompressSample_LookupTable (int16_t sample) {
+    int sign = (sample >> 8) & 0x80;
+    if (sign)
+        sample = (short)-sample;
+    if (sample == -32768)
+        sample = 32767;
+    if (sample > cClip)
+        sample = cClip;
+    sample = (short)(sample + cBias);
+    int exponent = (int)MuLawCompressTable[(sample>>7) & 0xFF];
+    int mantissa = (sample >> (exponent+3)) & 0x0F;
+    int compressedByte = ~ (sign | (exponent << 4) | mantissa);
+
+    return (unsigned char) compressedByte;
+}
+
+unsigned char CompressSample_Optimized (int16_t sample) {
     register int32_t localSample = (int32_t) sample;
     register u_int32_t sign;
     register int32_t leadingZeroes, exponent, mantissa;
     register unsigned char compressedByte;
-    asm("@end of register local var declarations");
 
     /* If sample was negative, sign = 1. if sample was positive, sign = 0 */
-    asm("@sign = (localSample >> 15) & 0x1");
     sign = (localSample >> 15) & 0x1;
 
     /* Get magnitude (absolute value) from sample */
-    asm("@localSample = (localSample < 0) ? -localSample : localSample");
     localSample = (localSample < 0) ? -localSample : localSample;
-    
-    /* Cannot deal with value outside of 16 bits. 
+
+    /* Cannot deal with value outside of 16 bits.
      * cClip = (2^16 - 1) - cBias */
     //localSample = (localSample < cClip) ? localSample + cBias : 32767;
     // ^ assembles to branch. Replaced with below.
-    asm("@localSample += cBias");
     localSample += cBias;
-    asm("@localSample = (localSample < 32767) ? localSample : 32767");
     localSample = (localSample < 32767) ? localSample : 32767;
 
     asm volatile (
@@ -431,21 +457,17 @@ unsigned char LinearToMuLawSample(int16_t sample)
         : "r" (localSample)
     );
 
-    /* Calculate exponent from leading zeroes. Does the equivalent of the 
+    /* Calculate exponent from leading zeroes. Does the equivalent of the
      * lookup table from the unoptimized code. */
     //exponent = (leadingZeroes != 0) ? 24 - leadingZeroes : 0;
     // ^ assembles to branch. Replaced with below.
-    asm("@exponent = 24 - leadingZeroes");
     exponent = 24 - leadingZeroes;
-    asm("@exponent = (exponent > 0) ? exponent : 0");
     exponent = (exponent > 0) ? exponent : 0;
 
     /* Mantissa is the four bits to the right of the exponent position */
-    asm("@mantissa = (localSample >> (exponent+3)) & 0xF");
     mantissa = (localSample >> (exponent+3)) & 0xF;
 
     /* Form compressed byte and cast to unsigned char */
-    asm("@compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | manttissa)");
     //compressedByte = (unsigned char) ~ ((sign << 7) | (exponent << 4) | mantissa);
     // ^ assembles to several unnecessary uxth instructions
 #pragma GCC diagnostic push
@@ -461,46 +483,82 @@ unsigned char LinearToMuLawSample(int16_t sample)
     );
 #pragma GCC diagnostic pop
 
-    /*
-     * Inserts a marker into the assembly. 
-     * Search for regex: ^@[^"]*"opt_main.c
-     */
-    asm("@return compressedByte");
     return (unsigned char) compressedByte;
 }
-/** End of borrowed code */
 
-/*
-The code containing the following implementation of the logarithmic compression function will go here:
+unsigned char CompressSample_Original (int16_t sample) {
+    int32_t exponent, mantissa;
+    unsigned char compressedByte;
+    int32_t sample_magnitude, sign;
 
-		y =  ln(1 + mu|x|)
-			--------------
-			  ln(1 + mu)
+    if ((sample & 0x8000) == 0) {
+        sign = 0;
+        sample_magnitude = sample;
+    } else {
+        sign = 1;
+        sample_magnitude = -sample;
+    }
 
-			  
-*/
-void compressionFunction()
-{
-	//First calculate the numerator
-	//Then calculate the denominator
+    if (sample == -32768) {
+        sample_magnitude = cClip;
+    }
+    if (sample_magnitude > cClip) {
+        sample_magnitude = cClip;
+    }
+    sample_magnitude = (short) (sample_magnitude + cBias);        
+
+    if (sample_magnitude & (1 << 14)) {
+        exponent = 0x7;
+        mantissa = (sample_magnitude >> 10) & 0xF;
+    } else if (sample_magnitude & (1 << 13)) {
+        exponent = 0x6;
+        mantissa = (sample_magnitude >> 9) & 0xF;
+    } else if (sample_magnitude & (1 << 12)) {
+        exponent = 0x5;
+        mantissa = (sample_magnitude >> 8) & 0xF;
+    } else if (sample_magnitude & (1 << 11)) {
+        exponent = 0x4;
+        mantissa = (sample_magnitude >> 7) & 0xF;
+    } else if (sample_magnitude & (1 << 10)) {
+        exponent = 0x3;
+        mantissa = (sample_magnitude >> 6) & 0xF;
+    } else if (sample_magnitude & (1 << 9)) {
+        exponent = 0x2;
+        mantissa = (sample_magnitude >> 5) & 0xF;
+    } else if (sample_magnitude & (1 << 8)) {
+        exponent = 0x1;
+        mantissa = (sample_magnitude >> 4) & 0xF;
+    } else if (sample_magnitude & (1 << 7)) {
+        exponent = 0x0;
+        mantissa = (sample_magnitude >> 3) & 0xF;
+    } else {
+        exponent = 0x0;
+        mantissa = 0x0;
+    }
+
+    compressedByte = ~((sign << 7) | (exponent << 4) | mantissa);
+
+    return compressedByte;
 }
+/** End of borrowed code */
 
 /**
  * Implementation of mu-law compression algorithm.
  *
  * Input: wave struct, containing 16-bit sound data
  *        filename to output compressed data
- * Output: none
+ * Output: for benchmarking, time taken to perform compression (using clock() and CLOCKS_PER_SEC)
  * Side effect: writes to a file (overwriting if the file exists).
  */
-void compress (wave * contents, char * filename) {
+double compress (wave * contents, char * filename, unsigned char (*encodefn)(int16_t)) {
     /**
      * Note: if the wBitsPerSample is greater than 16, a short won't
      * be enough space to contain the sample.
      */
-    int16_t sample = 0;
+    short sample = 0;
 
     FILE * outfile = fopen (filename, "wb");
+    clock_t start_time, end_time;
     /**
      * contents->data_size = the number of bytes in the data chunk. Each 
      * sample frame contains one sample per channel, at wBitsPerSample each.
@@ -509,15 +567,19 @@ void compress (wave * contents, char * filename) {
      * increases by the number of bytes per sample. The inner for loop does a
      * bitwise OR to collect the entire sample in a short int.
      */
+    start_time = clock();
     for (int i = 0; i < contents->data_size; i+=contents->wBitsPerSample / 8) {
         sample = contents->data[i];
         for (int j = 1; j <= contents->wBitsPerSample / 8; j++) {
             sample |= contents->data[i+j] << (8 * j);
         }
-        unsigned char compressed = LinearToMuLawSample (sample);
+        unsigned char compressed = encodefn (sample);
         fwrite (&compressed, sizeof(compressed), 1, outfile);
     }
+    end_time = clock();
     fclose(outfile);
+
+    return (double) ((end_time - start_time) / (1.0 * CLOCKS_PER_SEC));
 }
 
 /**
@@ -553,13 +615,6 @@ void decompress (char * infilename, char * outfilename) {
 
 int main(int argc, char **argv)
 {
-	/*
-	The function clock() is used to return the number of clock ticks elapsed since the program was launched.
-	Given that this is the start of the program, startTime is defined and initialized here. - PSR, 2021-07-13
-	*/
-	clock_t startTime, endTime;
-	startTime = clock();
-	
     /*
     argc and argv are used for file input, which in the case of this file is a 10-second .wav file
     Thus, argc is also first used for error checking as the program will not run without a .wav file - PSR, 2021-05-20
@@ -600,22 +655,33 @@ int main(int argc, char **argv)
             "calc from (8*data_size)/(nChannels * wBitsPerSample)");
     printf ("%20s: %8hd %s\n", "bytesPerSampleFrame", contents->bytesPerSampleFrame, 
             "calc from (nChannels * wBitsPerSample) / 8");
-    compress(contents, "test_compress.out");
+
+    unsigned char (*encodefn_original)(int16_t) = CompressSample_Original;
+    unsigned char (*encodefn_lookuptable)(int16_t) = CompressSample_LookupTable;
+    unsigned char (*encodefn_optimized)(int16_t) = CompressSample_Optimized;
+
+    double timeTaken;
+
+    timeTaken = compress(contents, "test_compress.out", encodefn_original);
     decompress ("test_compress.out", "test_decompress.out");
+	printf("Processor time used by the original version of audio compression: %lf\n", timeTaken);
+
+
+    timeTaken = compress(contents, "test_compress.out", encodefn_lookuptable);
+    decompress ("test_compress.out", "test_decompress.out");
+	printf("Processor time used by the lookup table version of audio compression: %lf\n", timeTaken);
+
+
+    timeTaken = compress(contents, "test_compress.out", encodefn_optimized);
+    decompress ("test_compress.out", "test_decompress.out");
+	printf("Processor time used by the assembly optimized version of audio compression: %lf\n", timeTaken);
+    
+
 
     if (contents->data != NULL) {
         free(contents->data);
     }
     free (contents);
-	
-	/*
-	To get the performance, endTime is finally defined here. But since it is in clock ticks, it is converted into a value in seconds.
-	This conversion is done using the macro CLOCKS_PER_SEC which is provided by the time.h library.
-	It is casted to double for precision to represent the value in seconds, as the difference in the optimized program may be that - PSR, 2021-07-13
-	*/
-	
-	endTime = clock();
-	printf("Processor time used by the unoptimized audio compression and decompression program: %lf\n", (double) ((endTime - startTime) / (1.0 * CLOCKS_PER_SEC)));
     
     return 0;    
 }
