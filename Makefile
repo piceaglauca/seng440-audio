@@ -1,9 +1,9 @@
 CC=armv7hl-redhat-linux-gnueabi-gcc
 CFLAGS=-Wall -O3
 
-SRC_FILE=main.c
-ASM_FILE=main.s
-OUT_FILE=main
+SRC_FILE=mulaw-compress.c
+ASM_FILE=mulaw-compress.s
+OUT_FILE=mulaw-compress
 
 OUTFILES=$(ASM_FILE) $(OUT_FILE)
 

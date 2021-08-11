@@ -25,8 +25,8 @@ To compile into a binary and assembly, just run ```make```:
 
 ```
 ~/seng440-audio# make
-armv7hl-redhat-linux-gnueabi-gcc -Wall -O3 -g -o main main.c
-armv7hl-redhat-linux-gnueabi-gcc -Wall -O3 -S -o main.s main.c
+armv7hl-redhat-linux-gnueabi-gcc -Wall -O3 -g -o mulaw-compress mulaw-compress.c
+armv7hl-redhat-linux-gnueabi-gcc -Wall -O3 -S -o mulaw-compress.s mulaw-compress.c
 ```
 
 ## Testing Compression
@@ -35,7 +35,7 @@ To run the compression algorithms on a test file use ```make test```:
 
 ```
 ~/seng440-audio# make test
-./main test_file.wav
+./mulaw-compress test_file.wav
 Processor time used by the original version of audio compression: 7.530905
 Processor time used by the lookup table version of audio compression: 7.127602
 Processor time used by the assembly optimized version of audio compression: 6.930987
