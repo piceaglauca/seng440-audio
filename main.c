@@ -149,118 +149,80 @@ void readWavFile(char* filename, wave * contents) {
     
     if(!wavFile)
     {
-        fprintf(stderr, "The input file in the argument is not of a compatible type for the application\n");
+        fprintf(stderr, "The input file in the argument is not of a compatible "
+            "type for the application\n");
         exit(1);
     }
     
-    //Start reading the .wav file
-    
-    /*
-    Start with intializing the object of the struct wave to actually hold the 
-    parsed data.  In this case, the object will simply be called contents
-    size_t result is used for the fread() function as shown here:
-    http://www.cplusplus.com/reference/cstdio/fread/
-    
-    The actual parsing operation will be done with the fread() function since 
-    it reads in an array from a stream and stores them 
-    
-    The first fread operation takes in the value for RIFF, which we know is 
-    'RIFF' 
-    
-    The second fread operation takes in the buff arrary so it can be used with 
-    wavFile.  After this, contents->riff_size is defined due to the second 
-    fread operations 
-    
-    Via the third fread operation, WAVEID is given its value, which we know is 
-    'WAVE'
-    
-    This completes the reading of the 'RIFF' chunk of the .wav file 
-    - PSR, 2021-05-20
-    */
-    
     unsigned char buff[4];
 
+    //unsigned char contents->RIFF[4];
     fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
     // can't continue if not RIFF file
-    assert (strncmp ((char*) contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
+    assert (strncmp ((char*) contents->RIFF, "RIFF", 
+        sizeof(contents->RIFF)) == 0);
     
+    //uint32_t contents->riff_size;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
-    contents->riff_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+    contents->riff_size = ((buff[0]) | 
+                           (buff[1] <<  8) | 
+                           (buff[2] << 16) | 
+                           (buff[3] << 24));
     assert (contents->riff_size > 0);
     
+    //unsigned char contents->WAVEID[4];
     fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
     // can't continue if not WAVE file
-    assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
+    assert (strncmp ((char*) contents->WAVEID, "WAVE", 
+        sizeof(contents->WAVEID)) == 0);
     
-    /*
-    The next bit of parsing with fread operations will take in values for the 
-    format chunk marker
-    
-    The first fread operation takes in the value for fmtID, which we know is 
-    'fmt'
-    
-    The second fread operation is a repeat on buff to ensure that it can be 
-    used on contents->fmt_size. After this, contents->data_size is defined all 
-    due to the third operation
-    
-    The fourth fread operation is a repeat on buff but this time with a smaller 
-    size, so sizeof(uint16_t) is used instead
-    After this, contents->wFormatTag is defined and it is used to judge the 
-    format type of the audio file
-    
-    The fifth fread operation is a repeat on buff with a smaller size, so 
-    sizeof(uint16_t) is once again used
-    After this, contents->nChannels is defined due to the fifth operation
-    
-    The sixth fread operation is a repeat on buff with the normal size for 
-    nSamplesPerSec. After this, contents->nSamplesPerSec is defined due to the 
-    sixth operation
-    
-    The seventh fread operation is a repeat on buff with the normal size for 
-    nAvgBytesPerSec. After this, contents->nAvgBytesPerSec is defined due to 
-    the seventh operation
-    
-    The eighth fread operation is a repeat on buff with the small size for 
-    nBlockAlign. After this, contents->nBlockAlign is defined due to the eighth 
-    operation
-    
-    The ninth fread operation is a repeat on buff with the normal size for 
-    wBitsPerSample. After this, contents->wBitsPerSample is defined due to the 
-    eighth operation
-    
-    This completes the reading of the 'fmt' chunk of the .wav file 
-    - PSR, 2021-06-04
-    */
-    
+    //unsigned char contents->fmtID[4];
     fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
     // can't continue without fmt chunk
-    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
+    assert (strncmp ((char*) contents->fmtID, "fmt ", 
+        sizeof(contents->fmtID)) == 0);
     
+    //uint32_t contents->fmt_size;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
-    contents->fmt_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+    contents->fmt_size = ((buff[0]) | 
+                          (buff[1] <<  8) | 
+                          (buff[2] << 16) | 
+                          (buff[3] << 24));
     // if fmt chunk is longer, this is not a valid PCM WAVE file
     assert (contents->fmt_size == 16);
     
+    //uint16_t contents->wFormatTag;
     fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->wFormatTag = ((buff[0]) | (buff[1] << 8));
     assert (contents->wFormatTag == 1); // any other wFormatTag is not PCM WAVE
     
+    //uint16_t contents->nChannels;
     fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->nChannels = ((buff[0]) | (buff[1] << 8));
     assert (contents->nChannels >= 1);
     
+    //uint32_t contents->nSamplesPerSec;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
-    contents->nSamplesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+    contents->nSamplesPerSec = ((buff[0]) | 
+                                (buff[1] <<  8) | 
+                                (buff[2] << 16) | 
+                                (buff[3] << 24));
     assert (contents->nSamplesPerSec > 0);
     
+    //uint32_t contents->nAvgBytesPerSec;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
-    contents->nAvgBytesPerSec = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+    contents->nAvgBytesPerSec = ((buff[0]) | 
+                                 (buff[1] <<  8) | 
+                                 (buff[2] << 16) | 
+                                 (buff[3] << 24));
     assert (contents->nAvgBytesPerSec > 0);
     
+    //uint32_t contents->nBlockAlign;
     fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->nBlockAlign = ((buff[0]) | (buff[1] << 8));
     assert (contents->nBlockAlign > 0);
     
+    //uint16_t contents->wBitsPerSample;
     fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->wBitsPerSample = ((buff[0]) | (buff[1] << 8));
     assert (contents->wBitsPerSample > 0);
@@ -273,29 +235,42 @@ void readWavFile(char* filename, wave * contents) {
      * This isn't an efficient scanning algorithm, but it's good enough for
      * the expected amount of data in the header that needs to be scanned.
      */
+    //unsigned char contents->dataID[4];
     fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
-    while (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) != 0) {
+    while (strncmp ((char*) contents->dataID, "data", 
+            sizeof(contents->dataID)) != 0) {
         // Move back "data" - 1 byte
         fseek(wavFile, 1 - sizeof(contents->dataID), SEEK_CUR);
         fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     }
     // can't continue without data chunk
-    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0);
+    assert (strncmp ((char*) contents->dataID, "data", 
+        sizeof(contents->dataID)) == 0);
     
     /** 
      * Read the size of the data chunk, and remember where in the file the data
      * chunk begins.
      */
+    //uint32_t contents->data_size;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
-    contents->data_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
+    contents->data_size = ((buff[0]) | 
+                           (buff[1] <<  8) | 
+                           (buff[2] << 16) | 
+                           (buff[3] << 24));
     contents->data_offset = ftell(wavFile);
     assert (contents->data_size > 0);
-    assert (contents->riff_size - contents->data_size + 8 == contents->data_offset);
+    assert (contents->riff_size - contents->data_size + 8 == 
+                    contents->data_offset);
 
-    // Calculate some details about the file
-    contents->file_size = 8 + contents->riff_size; // 8 bytes for the RIFF ckID and cksize
-    contents->numSampleFrames = (8 * contents->data_size) / (contents->nChannels * contents->wBitsPerSample);
-    contents->bytesPerSampleFrame = (contents->nChannels * contents->wBitsPerSample) / 8;
+    /**
+     * Calculate some details about the file. "8" below is used for the number
+     * of bytes comprising the RIFF ckID and cksize
+     */
+    contents->file_size = 8 + contents->riff_size;
+    contents->numSampleFrames = (8 * contents->data_size) / 
+                    (contents->nChannels * contents->wBitsPerSample);
+    contents->bytesPerSampleFrame = (contents->nChannels * 
+                    contents->wBitsPerSample) / 8;
 
     /**
      * Read the PCM data from the WAVE data chunk
@@ -481,7 +456,7 @@ unsigned char CompressSample_Original (int16_t sample) {
  *        and CLOCKS_PER_SEC)
  * Side effect: writes to a file (overwriting if the file exists).
  */
-double compress (wave * contents, char * filename, unsigned char (*encodefn)(int16_t)) {
+double compress (wave* contents, char* filename, unsigned char (*encodefn)(int16_t)) {
     /**
      * Note: if the wBitsPerSample is greater than 16, a short won't
      * be enough space to contain the sample.
@@ -600,7 +575,8 @@ int main(int argc, char **argv)
     
     if(argc < 2 || argc > 2)
     {
-        fprintf(stderr, "Two arguments are required: application declaration and a 10-second .wav file\n");
+        fprintf(stderr, "Two arguments are required: application declaration "
+            "and a 10-second .wav file\n");
         exit(1);
     }
     
@@ -621,6 +597,10 @@ int main(int argc, char **argv)
         memset (contents, 0, sizeof(wave));
     }
 
+    /**
+     * Populate contents data structure with values from WAV file header and
+     * data
+     */
     readWavFile (argv[1], contents);
 
     /**
@@ -635,18 +615,20 @@ int main(int argc, char **argv)
 
     timeTaken = compress(contents, "test_compress.out", encodefn_original);
     decompress ("test_compress.out", "test_decompress.out");
-    printf("Processor time used by the original version of audio compression: %lf\n", timeTaken);
+    printf("Processor time used by the original version of audio compression: "
+        "%lf\n", timeTaken);
 
 
     timeTaken = compress(contents, "test_compress.out", encodefn_lookuptable);
     decompress ("test_compress.out", "test_decompress.out");
-    printf("Processor time used by the lookup table version of audio compression: %lf\n", timeTaken);
+    printf("Processor time used by the lookup table version of audio "
+        "compression: %lf\n", timeTaken);
 
 
     timeTaken = compress(contents, "test_compress.out", encodefn_optimized);
     decompress ("test_compress.out", "test_decompress.out");
-    printf("Processor time used by the assembly optimized version of audio compression: %lf\n", timeTaken);
-    
+    printf("Processor time used by the assembly optimized version of audio "
+        "compression: %lf\n", timeTaken);
 
 
     if (contents->data != NULL) {
