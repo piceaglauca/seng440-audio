@@ -4,6 +4,13 @@
 #include <string.h>
 #include <time.h>
 
+/**
+ * Data structure to encapsulate characteristics of a WAV file as outlined in
+ * the file header. The struct contains a pointer to a int16_t array containing
+ * the WAV audio samples in the data chunk. All other values in the data 
+ * structure are primitive types.
+ * See http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+ */
 typedef struct wave
 {
     /** 
@@ -32,7 +39,8 @@ typedef struct wave
 
     /**
      * Size of the fmt chunk. Should be 16 bytes for an uncompressed PCM file.
-     * Otherwise, it can be 18 or 40 bytes for other formats (not supported here).
+     * Otherwise, it can be 18 or 40 bytes for other formats (not supported 
+     * here).
      */
     u_int32_t fmt_size;
 
@@ -73,14 +81,6 @@ typedef struct wave
      * channel.
      */
     u_int16_t wBitsPerSample;
-    
-    /*
-    This third piece is about the data of the .wav file that will be uploaded
-    The data has the components: dataID, data_size
-    
-    dataID refers to the data ID, which is 'data', taking up 4 bytes
-    data_size refers to the overall size of the data
-    */
     
     /**
      * Chunk ID: "data"
@@ -139,21 +139,6 @@ void checkTestFile(wave *contents) {
     //unsigned char WAVEID[4];
     assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
     
-    /*
-    This second piece is about the format chunk marker of the .wav file that will be uploaded
-    The format chunk marker has the components: fmtID, fmt_size, wFormatTag, nChannels, nSamplesPerSec, nAvgBytesPerSec, nBlockAlign, wBitsPerSample
-    
-    fmtID refers to the CHUNK ID, which is 'fmt', taking up 4 bytes
-    fmt_size refers to the overall size of the format data
-    wFormatTag refers to the format code, uint16_t is used here since it is clearly smaller
-    nChannels refers to the number of interleaved channels, also uint16_t since it is smaller
-    nSamplesPerSec refers to the sampling rate (blocks per second)
-    nAvgBytesPerSec refers to the data rate
-    nBlockAlign refers to the data block size in bytes, it should be 4 bytes
-    wBitsPerSample refers to the bits per sample (it is the nBlockAlign / nChannels) - PSR, 2021-05-28
-    
-    */
-    
     //unsigned char fmtID[4];
     assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
 
@@ -177,14 +162,6 @@ void checkTestFile(wave *contents) {
 
     //uint16_t wBitsPerSample;
     assert (contents->wBitsPerSample == 16);
-    
-    /*
-    This third piece is about the data of the .wav file that will be uploaded
-    The data has the components: dataID, data_size
-    
-    dataID refers to the data ID, which is 'data', taking up 4 bytes
-    data_size refers to the overall size of the data
-    */
     
     //unsigned char dataID[4];
     assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0);
@@ -220,69 +197,90 @@ void readWavFile(char* filename, wave * contents) {
     //Start reading the .wav file
     
     /*
-    Start with intializing the object of the struct wave to actually hold the parsed data
-    In this case, the object will simply be called contents
-    size_t result is used for the fread() function as shown here http://www.cplusplus.com/reference/cstdio/fread/
+    Start with intializing the object of the struct wave to actually hold the 
+    parsed data.  In this case, the object will simply be called contents
+    size_t result is used for the fread() function as shown here:
+    http://www.cplusplus.com/reference/cstdio/fread/
     
-    The actual parsing operation will be done with the fread() function since it reads in an array from a stream and stores them 
+    The actual parsing operation will be done with the fread() function since 
+    it reads in an array from a stream and stores them 
     
-    The first fread operation takes in the value for RIFF, which we know is 'RIFF' 
+    The first fread operation takes in the value for RIFF, which we know is 
+    'RIFF' 
     
-    The second fread operation takes in the buff arrary so it can be used with wavFile 
-    After this, contents->riff_size is defined due to the second fread operations 
+    The second fread operation takes in the buff arrary so it can be used with 
+    wavFile.  After this, contents->riff_size is defined due to the second 
+    fread operations 
     
-    Via the third fread operation, WAVEID is given its value, which we know is 'WAVE'
+    Via the third fread operation, WAVEID is given its value, which we know is 
+    'WAVE'
     
-    This completes the reading of the 'RIFF' chunk of the .wav file - PSR, 2021-05-20
+    This completes the reading of the 'RIFF' chunk of the .wav file 
+    - PSR, 2021-05-20
     */
     
     unsigned char buff[4];
-    
+
     fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
-    assert (strncmp ((char*) contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0); // can't continue if not RIFF file
+    // can't continue if not RIFF file
+    assert (strncmp ((char*) contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
     
     fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->riff_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     assert (contents->riff_size > 0);
     
     fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
-    assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0); // can't continue if not WAVE file
+    // can't continue if not WAVE file
+    assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
     
     /*
-    The next bit of parsing with fread operations will take in values for the format chunk marker
+    The next bit of parsing with fread operations will take in values for the 
+    format chunk marker
     
-    The first fread operation takes in the value for fmtID, which we know is 'fmt'
+    The first fread operation takes in the value for fmtID, which we know is 
+    'fmt'
     
-    The second fread operation is a repeat on buff to ensure that it can be used on contents->fmt_size
-    After this, contents->data_size is defined all due to the third operation
+    The second fread operation is a repeat on buff to ensure that it can be 
+    used on contents->fmt_size. After this, contents->data_size is defined all 
+    due to the third operation
     
-    The fourth fread operation is a repeat on buff but this time with a smaller size, so sizeof(uint16_t) is used instead
-    After this, contents->wFormatTag is defined and it is used to judge the format type of the audio file
+    The fourth fread operation is a repeat on buff but this time with a smaller 
+    size, so sizeof(uint16_t) is used instead
+    After this, contents->wFormatTag is defined and it is used to judge the 
+    format type of the audio file
     
-    The fifth fread operation is a repeat on buff with a smaller size, so sizeof(uint16_t) is once again used
+    The fifth fread operation is a repeat on buff with a smaller size, so 
+    sizeof(uint16_t) is once again used
     After this, contents->nChannels is defined due to the fifth operation
     
-    The sixth fread operation is a repeat on buff with the normal size for nSamplesPerSec
-    After this, contents->nSamplesPerSec is defined due to the sixth operation
+    The sixth fread operation is a repeat on buff with the normal size for 
+    nSamplesPerSec. After this, contents->nSamplesPerSec is defined due to the 
+    sixth operation
     
-    The seventh fread operation is a repeat on buff with the normal size for nAvgBytesPerSec
-    After this, contents->nAvgBytesPerSec is defined due to the seventh operation
+    The seventh fread operation is a repeat on buff with the normal size for 
+    nAvgBytesPerSec. After this, contents->nAvgBytesPerSec is defined due to 
+    the seventh operation
     
-    The eighth fread operation is a repeat on buff with the small size for nBlockAlign
-    After this, contents->nBlockAlign is defined due to the eighth operation
+    The eighth fread operation is a repeat on buff with the small size for 
+    nBlockAlign. After this, contents->nBlockAlign is defined due to the eighth 
+    operation
     
-    The ninth fread operation is a repeat on buff with the normal size for wBitsPerSample
-    After this, contents->wBitsPerSample is defined due to the eighth operation
+    The ninth fread operation is a repeat on buff with the normal size for 
+    wBitsPerSample. After this, contents->wBitsPerSample is defined due to the 
+    eighth operation
     
-    This completes the reading of the 'fmt' chunk of the .wav file - PSR, 2021-06-04
+    This completes the reading of the 'fmt' chunk of the .wav file 
+    - PSR, 2021-06-04
     */
     
     fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
-    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0); // can't continue without fmt chunk
+    // can't continue without fmt chunk
+    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
     
     fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->fmt_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
-    assert (contents->fmt_size == 16); // if fmt chunk is longer, this is not a valid PCM WAVE file
+    // if fmt chunk is longer, this is not a valid PCM WAVE file
+    assert (contents->fmt_size == 16);
     
     fread(buff, sizeof(u_int16_t), 1, wavFile);
     contents->wFormatTag = ((buff[0]) | (buff[1] << 8));
@@ -313,6 +311,8 @@ void readWavFile(char* filename, wave * contents) {
      * chunks. As a result, we don't know where the data chunk starts. We'll 
      * keep scanning in the file until we find it. It shouldn't be far, since
      * we're still in the file header.
+     * This isn't an efficient scanning algorithm, but it's good enough for
+     * the expected amount of data in the header that needs to be scanned.
      */
     fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     while (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) != 0) {
@@ -320,9 +320,13 @@ void readWavFile(char* filename, wave * contents) {
         fseek(wavFile, 1 - sizeof(contents->dataID), SEEK_CUR);
         fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
     }
-    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0); // can't continue without data chunk
+    // can't continue without data chunk
+    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0);
     
-    // Read the size of the data chunk, and remember the offset
+    /** 
+     * Read the size of the data chunk, and remember where in the file the data
+     * chunk begins.
+     */
     fread(buff, sizeof(u_int32_t), 1, wavFile);
     contents->data_size = ((buff[0]) | (buff[1] << 8) | (buff[2] << 16) | (buff[3] << 24));
     contents->data_offset = ftell(wavFile);
@@ -351,8 +355,7 @@ void readWavFile(char* filename, wave * contents) {
 
 /**
  * The following is taken from 
- * https://web.archive.org/web/20110719132013/http://hazelware.luggle.com/tutorials/mulawcompression.html
- * Author unknown. Original host site is no longer available.
+ * https://jonathanhays.me/2018/11/14/mu-law-and-a-law-compression-tutorial/
  * Accessed 2021-06-08
  */
 const int cBias = 0x84;
@@ -382,18 +385,19 @@ static char MuLawCompressTable[256] =
 unsigned char CompressSample_LookupTable (int16_t sample) {
     int sign = (sample >> 8) & 0x80;
     if (sign)
-        sample = (short)-sample;
+        sample = (short)-sample; // absolute value
     if (sample == -32768)
         sample = cClip;
     if (sample > cClip)
         sample = cClip;
     sample = (short)(sample + cBias);
-    int exponent = (int)MuLawCompressTable[(sample>>7) & 0xFF];
-    int mantissa = (sample >> (exponent+3)) & 0x0F;
+    int exponent = (int) MuLawCompressTable[(sample >> 7) & 0xFF];
+    int mantissa = (sample >> (exponent + 3)) & 0x0F;
     int compressedByte = ~ (sign | (exponent << 4) | mantissa);
 
     return (unsigned char) compressedByte;
 }
+/** End of borrowed code */
 
 unsigned char CompressSample_Optimized (int16_t sample) {
     register int32_t localSample = (int32_t) sample;
@@ -449,6 +453,10 @@ unsigned char CompressSample_Optimized (int16_t sample) {
     return (unsigned char) compressedByte;
 }
 
+/*
+ * The following implementation was adapted from the project introduction
+ * slides given by Dr. Mihai Sima
+ */
 unsigned char CompressSample_Original (int16_t sample) {
     int32_t exponent, mantissa;
     unsigned char compressedByte;
@@ -459,7 +467,7 @@ unsigned char CompressSample_Original (int16_t sample) {
         sample_magnitude = sample;
     } else {
         sign = 1;
-        sample_magnitude = -sample;
+        sample_magnitude = -sample; // absolute value
     }
 
     if (sample == -32768) {
@@ -503,14 +511,15 @@ unsigned char CompressSample_Original (int16_t sample) {
 
     return compressedByte;
 }
-/** End of borrowed code */
+/* End of code adapted from Dr. Mihai Sima */
 
 /**
  * Implementation of mu-law compression algorithm.
  *
  * Input: wave struct, containing 16-bit sound data
  *        filename to output compressed data
- * Output: for benchmarking, time taken to perform compression (using clock() and CLOCKS_PER_SEC)
+ * Output: for benchmarking, time taken to perform compression (using clock() 
+ *        and CLOCKS_PER_SEC)
  * Side effect: writes to a file (overwriting if the file exists).
  */
 double compress (wave * contents, char * filename, unsigned char (*encodefn)(int16_t)) {
@@ -528,7 +537,9 @@ double compress (wave * contents, char * filename, unsigned char (*encodefn)(int
      * 
      * This for loop iterates over the indices of contents->data, and 
      * increases by the number of bytes per sample. The inner for loop does a
-     * bitwise OR to collect the entire sample in a short int.
+     * bitwise OR to collect the entire sample in a short int. If the audio is
+     * mono, there will only be one iteration of the inner for loop. If stereo,
+     * only two iterations of the inner for loop.
      */
     start_time = clock();
     for (int i = 0; i < contents->data_size; i+=contents->wBitsPerSample / 8) {
@@ -544,6 +555,12 @@ double compress (wave * contents, char * filename, unsigned char (*encodefn)(int
 
     return (double) ((end_time - start_time) / (1.0 * CLOCKS_PER_SEC));
 }
+
+/**
+ * The following is taken from 
+ * https://jonathanhays.me/2018/11/14/mu-law-and-a-law-compression-tutorial/
+ * Accessed 2021-06-08
+ */
 
 // 512 bytes (32x8 matrix, 2 bytes per element
 static short MuLawDecompressTable[256] =
@@ -603,21 +620,23 @@ void decompress (char * infilename, char * outfilename) {
      * to decompress the 8-bit sample into 16-bits. The index of the value is
      * simply the 8-bit compressed codeword. The output will be the 
      * corresponding 16-bit decompressed value.
-     * Source: https://web.archive.org/web/20110719132013/http://hazelware.luggle.com/tutorials/mulawcompression.html
+     * Source: https://jonathanhays.me/2018/11/14/mu-law-and-a-law-compression-tutorial/
      */
     while (fread(&compressed, sizeof(compressed), 1, infile) == 1) {
-        decompressed = (u_int16_t) MuLawDecompressTable[(int)compressed];
+        decompressed = (u_int16_t) MuLawDecompressTable[(int) compressed];
         fwrite(&decompressed, sizeof(decompressed), 1, outfile);
     }
     fclose (outfile);
     fclose (infile);
 }
+/** End of borrowed code */
 
 int main(int argc, char **argv)
 {
     /*
-    argc and argv are used for file input, which in the case of this file is a 10-second .wav file
-    Thus, argc is also first used for error checking as the program will not run without a .wav file - PSR, 2021-05-20
+    argc and argv are used for file input, which in the case of this file is a 
+    10-second .wav file. Thus, argc is also first used for error checking as 
+    the program will not run without a .wav file - PSR, 2021-05-20
     */
     
     if(argc < 2 || argc > 2)
@@ -631,6 +650,10 @@ int main(int argc, char **argv)
     argv[1] - the .wav file that is called as the second argument
     */
     
+    /**
+     * Contents struct will contain the header and data chunks of the 
+     * input WAV file.
+     */
     wave * contents = (wave*) malloc (sizeof(wave));
     if (contents == NULL) {
         fprintf (stderr, "malloc failed\n");
@@ -642,6 +665,10 @@ int main(int argc, char **argv)
     readWavFile (argv[1], contents);
     checkTestFile(contents);
 
+    /**
+     * The pointers to functions are used in compress() to return the time
+     * taken by each algorithm.
+     */
     unsigned char (*encodefn_original)(int16_t) = CompressSample_Original;
     unsigned char (*encodefn_lookuptable)(int16_t) = CompressSample_LookupTable;
     unsigned char (*encodefn_optimized)(int16_t) = CompressSample_Optimized;
@@ -650,17 +677,17 @@ int main(int argc, char **argv)
 
     timeTaken = compress(contents, "test_compress.out", encodefn_original);
     decompress ("test_compress.out", "test_decompress.out");
-	printf("Processor time used by the original version of audio compression: %lf\n", timeTaken);
+    printf("Processor time used by the original version of audio compression: %lf\n", timeTaken);
 
 
     timeTaken = compress(contents, "test_compress.out", encodefn_lookuptable);
     decompress ("test_compress.out", "test_decompress.out");
-	printf("Processor time used by the lookup table version of audio compression: %lf\n", timeTaken);
+    printf("Processor time used by the lookup table version of audio compression: %lf\n", timeTaken);
 
 
     timeTaken = compress(contents, "test_compress.out", encodefn_optimized);
     decompress ("test_compress.out", "test_decompress.out");
-	printf("Processor time used by the assembly optimized version of audio compression: %lf\n", timeTaken);
+    printf("Processor time used by the assembly optimized version of audio compression: %lf\n", timeTaken);
     
 
 
