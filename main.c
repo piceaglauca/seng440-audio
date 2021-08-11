@@ -129,47 +129,6 @@ typedef struct wave
     
 } wave;
 
-void checkTestFile(wave *contents) {
-    //unsigned char RIFF[4];
-    assert (strncmp ((char*)contents->RIFF, "RIFF", sizeof(contents->RIFF)) == 0);
-
-    //uint32_t riff_size;
-    assert (contents->riff_size == 48734362);
-
-    //unsigned char WAVEID[4];
-    assert (strncmp ((char*) contents->WAVEID, "WAVE", sizeof(contents->WAVEID)) == 0);
-    
-    //unsigned char fmtID[4];
-    assert (strncmp ((char*) contents->fmtID, "fmt ", sizeof(contents->fmtID)) == 0);
-
-    //uint32_t fmt_size;
-    assert (contents->fmt_size == 16);
-
-    //uint16_t wFormatTag;
-    assert (contents->wFormatTag == 1);
-
-    //uint16_t nChannels;
-    assert (contents->nChannels == 2);
-    
-    //uint32_t nSamplesPerSec;
-    assert (contents->nSamplesPerSec == 44100);
-
-    //uint32_t nAvgBytesPerSec;
-    assert (contents->nAvgBytesPerSec == 176400);
-
-    //uint32_t nBlockAlign;
-    assert (contents->nBlockAlign == 4);
-
-    //uint16_t wBitsPerSample;
-    assert (contents->wBitsPerSample == 16);
-    
-    //unsigned char dataID[4];
-    assert (strncmp ((char*) contents->dataID, "data", sizeof(contents->dataID)) == 0);
-
-    //uint32_t data_size;
-    assert (contents->data_size == 48734208);
-}
-
 void readWavFile(char* filename, wave * contents) {
     /**
      * fopen is used to open the .wav file specified by argv[1] and associate 
@@ -663,7 +622,6 @@ int main(int argc, char **argv)
     }
 
     readWavFile (argv[1], contents);
-    checkTestFile(contents);
 
     /**
      * The pointers to functions are used in compress() to return the time
