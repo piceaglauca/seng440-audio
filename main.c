@@ -11,7 +11,7 @@
  * structure are primitive types.
  * See http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
  */
-typedef struct wave
+typedef struct WAVFile
 {
     /** 
      * Chunk ID: "RIFF" 
@@ -127,9 +127,9 @@ typedef struct wave
      */
     u_int16_t bytesPerSampleFrame;
     
-} wave;
+} wav_t;
 
-void readWavFile(char* filename, wave * contents) {
+void readWavFile(char* filename, wav_t * contents) {
     /**
      * fopen is used to open the .wav file specified by argv[1] and associate 
      * it with a stream accessed by the wavFile pointer "rb" - "r" refers to 
@@ -456,7 +456,7 @@ unsigned char CompressSample_Original (int16_t sample) {
  *        and CLOCKS_PER_SEC)
  * Side effect: writes to a file (overwriting if the file exists).
  */
-double compress (wave* contents, char* filename, unsigned char (*encodefn)(int16_t)) {
+double compress (wav_t* contents, char* filename, unsigned char (*encodefn)(int16_t)) {
     /**
      * Note: if the wBitsPerSample is greater than 16, a short won't
      * be enough space to contain the sample.
@@ -589,12 +589,12 @@ int main(int argc, char **argv)
      * Contents struct will contain the header and data chunks of the 
      * input WAV file.
      */
-    wave * contents = (wave*) malloc (sizeof(wave));
+    wav_t * contents = (wav_t*) malloc (sizeof(wav_t));
     if (contents == NULL) {
         fprintf (stderr, "malloc failed\n");
         exit(1);
     } else {
-        memset (contents, 0, sizeof(wave));
+        memset (contents, 0, sizeof(wav_t));
     }
 
     /**
