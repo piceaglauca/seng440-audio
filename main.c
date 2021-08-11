@@ -13,29 +13,11 @@
  */
 typedef struct WAVFile
 {
-    /** 
-     * Chunk ID: "RIFF" 
-     * Note: we probably don't need to store this.
-     */
-    unsigned char RIFF[4];
-
     /**
      * RIFF size is the number of bytes following the size field.
      * Total file size is 8 + riff_size. 8 bytes from the ID and size fields.
      */
     u_int32_t riff_size;
-
-    /**
-     * Chunk ID: "WAVE"
-     * Note: we probably don't need to store this.
-     */
-    unsigned char WAVEID[4];
-    
-    /**
-     * Chunk ID: "fmt " (space is intentional, to make field 4 bytes)
-     * Note: we probably don't need to store this.
-     */
-    unsigned char fmtID[4];
 
     /**
      * Size of the fmt chunk. Should be 16 bytes for an uncompressed PCM file.
@@ -82,12 +64,6 @@ typedef struct WAVFile
      */
     u_int16_t wBitsPerSample;
     
-    /**
-     * Chunk ID: "data"
-     * Note: we probably don't need to store this.
-     */
-    unsigned char dataID[4];
-
     /**
      * Size of the data chunk, in bytes.
      */
@@ -156,11 +132,11 @@ void readWavFile(char* filename, wav_t * contents) {
     
     unsigned char buff[4];
 
-    //unsigned char contents->RIFF[4];
-    fread(contents->RIFF, sizeof(contents->RIFF), 1, wavFile);
+    //unsigned char RIFF[4];
+    fread(buff, sizeof(buff), 1, wavFile);
     // can't continue if not RIFF file
-    assert (strncmp ((char*) contents->RIFF, "RIFF", 
-        sizeof(contents->RIFF)) == 0);
+    assert (strncmp ((char*) buff, "RIFF", 
+        sizeof(buff)) == 0);
     
     //uint32_t contents->riff_size;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
@@ -170,17 +146,17 @@ void readWavFile(char* filename, wav_t * contents) {
                            (buff[3] << 24));
     assert (contents->riff_size > 0);
     
-    //unsigned char contents->WAVEID[4];
-    fread(contents->WAVEID, sizeof(contents->WAVEID), 1, wavFile);
+    //unsigned char WAVEID[4];
+    fread(buff, sizeof(buff), 1, wavFile);
     // can't continue if not WAVE file
-    assert (strncmp ((char*) contents->WAVEID, "WAVE", 
-        sizeof(contents->WAVEID)) == 0);
+    assert (strncmp ((char*) buff, "WAVE", 
+        sizeof(buff)) == 0);
     
-    //unsigned char contents->fmtID[4];
-    fread(contents->fmtID, sizeof(contents->fmtID), 1, wavFile);
+    //unsigned char fmtID[4];
+    fread(buff, sizeof(buff), 1, wavFile);
     // can't continue without fmt chunk
-    assert (strncmp ((char*) contents->fmtID, "fmt ", 
-        sizeof(contents->fmtID)) == 0);
+    assert (strncmp ((char*) buff, "fmt ", 
+        sizeof(buff)) == 0);
     
     //uint32_t contents->fmt_size;
     fread(buff, sizeof(u_int32_t), 1, wavFile);
@@ -235,17 +211,17 @@ void readWavFile(char* filename, wav_t * contents) {
      * This isn't an efficient scanning algorithm, but it's good enough for
      * the expected amount of data in the header that needs to be scanned.
      */
-    //unsigned char contents->dataID[4];
-    fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
-    while (strncmp ((char*) contents->dataID, "data", 
-            sizeof(contents->dataID)) != 0) {
+    //unsigned char dataID[4];
+    fread(buff, sizeof(buff), 1, wavFile);
+    while (strncmp ((char*) buff, "data", 
+            sizeof(buff)) != 0) {
         // Move back "data" - 1 byte
-        fseek(wavFile, 1 - sizeof(contents->dataID), SEEK_CUR);
-        fread(contents->dataID, sizeof(contents->dataID), 1, wavFile);
+        fseek(wavFile, 1 - sizeof(buff), SEEK_CUR);
+        fread(buff, sizeof(buff), 1, wavFile);
     }
     // can't continue without data chunk
-    assert (strncmp ((char*) contents->dataID, "data", 
-        sizeof(contents->dataID)) == 0);
+    assert (strncmp ((char*) buff, "data", 
+        sizeof(buff)) == 0);
     
     /** 
      * Read the size of the data chunk, and remember where in the file the data
